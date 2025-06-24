@@ -12,3 +12,6 @@
 |Billing| Total cost, patient ID, services, date|
 |Staff| Staff details: Nurses, admin: role, shift, assigned dept |
 |Users| User accounts: username, password, role (admin, doctor, nurse) |
+
+## ER Diagram
+![ER Diagram](img/HospitalManagementSystem-ERD.png)
