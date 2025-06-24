@@ -912,5 +912,49 @@ WHERE D.S_ID IN (
 ```
 ![Query 6 Result](img/DQL6.JPG)
 
+###  Functions & Stored Procedures 
+1. Scalar function to calculate patient age from DOB.
+```sql
+
+-- Description: Calculates the age of a patient based on their Date of Birth (DOB).
+-- Parameters:
+--   @DateOfBirth DATE: The patient's date of birth.
+-- Returns: INT (The calculated age in years).
+-- Example Usage: SELECT dbo.fn_CalculatePatientAge('1990-05-15');
+CREATE FUNCTION dbo.fn_CalculatePatientAge (@DateOfBirth DATE)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @Age INT;
+
+    -- Calculate age by subtracting birth year from current year.
+    -- Then, adjust if the birthday hasn't occurred yet this year.
+    SET @Age = DATEDIFF(year, @DateOfBirth, GETDATE());
+
+    IF MONTH(@DateOfBirth) > MONTH(GETDATE()) OR
+       (MONTH(@DateOfBirth) = MONTH(GETDATE()) AND DAY(@DateOfBirth) > DAY(GETDATE()))
+    BEGIN
+        SET @Age = @Age - 1;
+    END
+
+    RETURN @Age;
+END;
+
+-- test
+SELECT
+    P.P_FName,
+    P.P_LName,
+    P.DBO,
+    dbo.fn_CalculatePatientAge(P.DBO) AS Age
+FROM
+    PatientServices.Patients AS P;
+
+```
+![Function Result](img/F1.JPG)
+
+2. Stored procedure to admit a patient (insert to Admissions, update Room availability).
+``` sql
+
+```
 
 
