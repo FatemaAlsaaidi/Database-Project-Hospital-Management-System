@@ -787,4 +787,130 @@ ALTER SCHEMA NursingCare TRANSFER dbo.Staff_Department_NursingCare;
 
 ```
 
+### Queries to Test (DQL)
+1. List all patients who visited a certain doctor.
+```
+ SELECT
+    P.P_ID,
+    P.P_FName,
+    P.P_LName,
+    P.DBO,
+    P.P_Gender,
+    P.Address
+FROM
+    PatientServices.Patients AS P
+JOIN
+    MedicalManagement.Patient_Doctor_Treats AS PDT ON P.P_ID = PDT.P_ID
+JOIN
+    MedicalManagement.Doctors AS D ON PDT.S_ID = D.S_ID AND PDT.Dep_ID = D.Dep_ID
+JOIN
+    SystemCore.Staff AS S ON D.S_ID = S.S_ID
+WHERE
+    S.S_FName = 'Dr. Salim' AND S.S_LName = 'Al Rashdi';
+
+```
+![Query 1 Result](img/DQL1.JPG)
+
+2. Count of appointments per department. 
+```
+SELECT
+    D.Dep_Name,
+    COUNT(PDA.P_ID) AS NumberOfAppointments
+FROM
+    SystemCore.Departments AS D
+JOIN
+    MedicalManagement.Patient_Doctor_Appointments AS PDA ON D.Dep_ID = PDA.Dep_ID
+GROUP BY
+    D.Dep_Name
+ORDER BY
+    NumberOfAppointments DESC;
+
+```
+![Query 2 Result](img/DQL2.JPG)
+
+3. Retrieve doctors who have more than 5 appointments in a month. 
+```
+SELECT
+    S.S_FName,
+    S.S_LName,
+    D.Specialization,
+    COUNT(PDA.P_ID) AS TotalAppointments
+FROM
+    SystemCore.Staff AS S
+JOIN
+    MedicalManagement.Doctors AS D ON S.S_ID = D.S_ID
+JOIN
+    MedicalManagement.Patient_Doctor_Appointments AS PDA ON D.S_ID = PDA.S_ID AND D.Dep_ID = PDA.Dep_ID
+WHERE
+    FORMAT(PDA.AppointmentDate, 'yyyy-MM') = '2024-07' -- Filter for a specific month
+GROUP BY
+    S.S_FName,
+    S.S_LName,
+    D.Specialization
+HAVING
+    COUNT(PDA.P_ID) >=1
+ORDER BY
+    TotalAppointments DESC;
+
+```
+![Query 3 Result](img/DQL3.JPG)
+
+4. Use JOINs across 3–4 tables.
+```SQL
+SELECT
+    P.P_FName,
+    P.P_LName,
+    A.DateIN,
+    R.RoomType,
+    R.RoomID
+FROM
+    PatientServices.Patients AS P
+JOIN
+    PatientServices.Admissions AS A ON P.P_ID = A.P_ID
+JOIN
+    HospitalResources.Rooms AS R ON A.Room_ID = R.RoomID
+WHERE
+    R.Available = 'FALSE'; -- Assuming 'FALSE' means currently occupied
+
+```
+![Query 4 Result](img/DQL4.JPG)
+
+5. Use GROUP BY, HAVING, and aggregate functions. 
+``` SQL
+SELECT
+    D.Dep_Name,
+    SUM(S.S_Salary) AS TotalDepartmentSalary
+FROM
+    SystemCore.Departments AS D
+JOIN
+    SystemCore.Staff AS S ON D.Dep_ID = S.Dep_ID
+GROUP BY
+    D.Dep_Name
+HAVING
+    SUM(S.S_Salary) > 5000.000 -- Adjust this threshold as needed
+ORDER BY
+    TotalDepartmentSalary DESC;
+```
+![Query 5 Result](img/DQL5.JPG)
+
+6. Use SUBQUERIES and EXISTS. 
+``` SQL
+SELECT
+    S.S_FName,
+    S.S_LName,
+    D.Specialization
+FROM
+    SystemCore.Staff AS S
+JOIN
+    MedicalManagement.Doctors AS D ON S.S_ID = D.S_ID
+WHERE D.S_ID IN (
+    SELECT MR.s_ID
+    FROM MedicalManagement.MedicalRecords AS MR
+    WHERE MR.Diagnosis = 'Hypertension'
+);
+
+```
+![Query 6 Result](img/DQL6.JPG)
+
+
 
