@@ -15,5 +15,11 @@
 
 ## ER Diagram
 ![ER Diagram](img/HospitalManagementSystem-ERD.png)
+
 ## Mapping
 ![Mapping](img/HospitalManagementSystem-Mapping.png)
+
+## Normalization
+![Normalization](img/HospitalManagementSystem-Normlization.png)
+
+
