@@ -1651,3 +1651,18 @@ GROUP BY
 ```
 ![View Result](img/VW3.JPG)
 
+# Additional Requirement: SQL Server Job (SQL Agent Job)
+SQL Job Requirements 
+Students must create at least one SQL Job that does the following: 
+Option 1: Daily Backup Job 
+• Job Name: Daily_HospitalDB_Backup 
+• Schedule: Every day at 2:00 AM 
+• Action: Database backup
+
+Option 2: Doctor Schedule Report 
+• Job Name: Doctor_Daily_Schedule_Report 
+• Schedule: Every morning at 7:00 AM 
+• Action: 
+o A stored procedure that extracts the daily doctor schedule from Appointments and inserts it into a 
+report table DoctorDailyScheduleLog.
+
