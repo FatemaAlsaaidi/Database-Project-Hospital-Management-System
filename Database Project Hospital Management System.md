@@ -1,4 +1,4 @@
-# Database Project Hospital Management System
+﻿# Database Project Hospital Management System
 ## Required Database Objects
 |Table| Description|
 |------| ---------|
@@ -855,7 +855,7 @@ ORDER BY
 ```
 ![Query 3 Result](img/DQL3.JPG)
 
-4. Use JOINs across 3�4 tables.
+4. Use JOINs across 3–4 tables.
 ```SQL
 SELECT
     P.P_FName,
@@ -1154,5 +1154,65 @@ EXEC dbo.sp_AssignDoctorToDepartmentAndShift @S_ID = 1, @NewDep_ID = 2, @NewShif
 select * from SystemCore.Staff
 ```
 ![Procedure Result](img/SP3.PNG)
+
+### Triggers
+1. After insert on Appointments → auto log in MedicalRecords. 
+```sql
+-- Fires AFTER an INSERT operation on the Patient_Doctor_Appointments table.
+-- Automatically creates a new entry in the MedicalRecords table to log the appointment.
+-- This provides a basic audit trail or initial record for each appointment.
+-- =======================================================
+
+CREATE TRIGGER trg_Appointments_AutoLogMedicalRecords
+ON MedicalManagement.Patient_Doctor_Appointments
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- For each new appointment inserted, create a corresponding medical record entry.
+    INSERT INTO MedicalManagement.MedicalRecords (
+        Record_ID,
+        P_ID,
+        s_ID,
+        Dep_ID,
+        Diagnosis,
+        Record_Notes,
+        RecordDate,
+        Treatment_Plans
+    )
+    SELECT
+        -- Generate a new Record_ID (assuming it's not an IDENTITY column, if it is, remove this line)
+        ISNULL((SELECT MAX(Record_ID) FROM MedicalManagement.MedicalRecords), 2000) + ROW_NUMBER() OVER (ORDER BY I.P_ID),
+        I.P_ID,
+        I.S_ID,
+        I.Dep_ID,
+        'Initial Appointment Log', -- Generic diagnosis for auto-log
+        'Auto-generated log for new appointment on ' + CONVERT(NVARCHAR(20), I.AppointmentDate, 101) + ' at ' + CONVERT(NVARCHAR(20), I.AppointmentTime, 108) + '.',
+        GETDATE(), -- Record date is now
+        'Follow-up/Diagnosis Pending' -- Generic treatment plan
+    FROM
+        INSERTED AS I;
+
+    PRINT 'Trigger [trg_Appointments_AutoLogMedicalRecords] executed: Medical record(s) logged for new appointment(s).';
+END;
+
+-- Test
+
+-- Example 1: Inserting a new appointment for Patient ID 1, Doctor S_ID 1, Department ID 1
+-- (Ensure P_ID=1 exists in Patients, and (S_ID=1, Dep_ID=1) exists in Doctors)
+INSERT INTO PatientServices.Patients (P_FName, P_LName, DBO, P_Gender, Address) VALUES
+('Ali', 'Al Balushi', '1985-03-15', 'Male', 'Muscat, Al Khuwair')
+
+INSERT INTO MedicalManagement.Patient_Doctor_Appointments (P_ID, S_ID, Dep_ID, AppointmentDate, AppointmentTime, Status, AppointmentType)
+VALUES (21, 7, 1, '2024-08-01', '09:00:00', 'Scheduled', 'General Checkup');
+GO
+
+Select * from PatientServices.Patients
+
+Select * from MedicalManagement.MedicalRecords
+
+```
+![Trigger Result](img/T1.PNG)
 
 
