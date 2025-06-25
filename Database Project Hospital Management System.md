@@ -1215,4 +1215,131 @@ Select * from MedicalManagement.MedicalRecords
 ```
 ![Trigger Result](img/T1.JPG)
 
+2. Before delete on Patients → prevent deletion if pending bills exist.
+```sql
+CREATE TRIGGER trg_Patients_PreventDeleteIfPendingBills
+ON PatientServices.Patients
+INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Check if any patient being deleted has bills with a Total_Cost greater than 0
+    IF EXISTS (
+        SELECT 1
+        FROM DELETED AS D
+        JOIN PatientServices.Biling AS B ON D.P_ID = B.P_ID
+        WHERE B.Total_Cost > 0
+    )
+    BEGIN
+        -- If found, raise an error and stop the deletion
+        RAISERROR('Cannot delete patient(s). One or more patients have pending billing records (Total_Cost > 0).', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+    ELSE
+    BEGIN
+        -- If no pending bills, proceed with the actual delete for all patients in the batch
+        DELETE FROM PatientServices.Patients
+        WHERE P_ID IN (SELECT P_ID FROM DELETED);
+        PRINT 'Patient(s) deleted successfully (no pending bills found).';
+    END
+END;
+GO
+
+-- TEST 
+DELETE FROM PatientServices.Patients
+WHERE P_ID = 1;
+
+```
+![Trigger Result](img/T2.JPG)]
+
+3. After update on Rooms → ensure no two patients occupy same room.
+```SQL
+-- Fires AFTER an UPDATE operation on the Rooms table.
+-- Ensures data consistency:
+-- 1. Prevents a room from being marked as 'TRUE' (available) if it is currently
+--    occupied by an active patient according to the Admissions table.
+-- 2. Prevents a reduction in room capacity if it would cause the number of
+--    currently admitted patients to exceed the new capacity.
+-- =======================================================
+CREATE TRIGGER trg_Rooms_PreventConflictingAvailability
+ON HospitalResources.Rooms
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Scenario 1: Preventing marking an occupied room as available
+    IF UPDATE(Available) AND EXISTS (
+        SELECT 1
+        FROM INSERTED AS I
+        JOIN DELETED AS D ON I.RoomID = D.RoomID
+        WHERE I.Available = 'TRUE' AND D.Available = 'FALSE' -- Status changed to available
+          AND EXISTS ( -- Check for any active patient in this room
+                SELECT 1
+                FROM PatientServices.Admissions AS A
+                WHERE A.Room_ID = I.RoomID
+                  AND A.DateIN <= GETDATE() -- Admission started
+                  AND (A.DateOut >= GETDATE() OR A.DateOut IS NULL) -- Not yet discharged
+            )
+    )
+    BEGIN
+        RAISERROR('Cannot mark room as available while it is currently occupied by an active patient.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    -- Scenario 2: Preventing reducing capacity below active patients
+    IF UPDATE(Capacity) AND EXISTS (
+        SELECT 1
+        FROM INSERTED AS I
+        JOIN DELETED AS D ON I.RoomID = D.RoomID
+        WHERE I.Capacity < D.Capacity -- Capacity was reduced
+          AND ( -- Count active patients in the room
+                SELECT COUNT(A.P_ID)
+                FROM PatientServices.Admissions AS A
+                WHERE A.Room_ID = I.RoomID
+                  AND A.DateIN <= GETDATE()
+                  AND (A.DateOut >= GETDATE() OR A.DateOut IS NULL)
+              ) > I.Capacity -- Active patients exceed new capacity
+    )
+    BEGIN
+        RAISERROR('Cannot reduce room capacity below the number of currently admitted patients.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    -- Print message for valid updates that pass trigger checks
+    PRINT 'Trigger [trg_Rooms_PreventConflictingAvailability] executed: Room update consistency checked.';
+END;
+GO
+
+-- TEST 
+
+-- SELECT * FROM PatientServices.Admissions
+-- SELECT * FROM HospitalResources.Rooms
+
+-- Test 1: Reduce capacity to less than the number of patients present
+UPDATE HospitalResources.Rooms
+SET Capacity = 1
+WHERE RoomID = 21;
+
+INSERT INTO HospitalResources.Rooms (RoomType, Available, Capacity)
+VALUES ('ICU', 'FALSE', 1);
+
+INSERT INTO PatientServices.Admissions (AdmID, P_ID, Room_ID, DateIN, DateOut)
+VALUES (1, 7, 22, GETDATE(), '2025-06-30'); 
+
+-- Test 2: Trying to make the occupied room "available"
+UPDATE HospitalResources.Rooms
+SET Available = 'TRUE'
+WHERE RoomID = 22;
+
+
+```
+TEST 1
+![Trigger Result](img/T3_TEST1.JPG)
+
+TEST 2
+![Trigger Result](img/T3_TEST2.JPG)
 
