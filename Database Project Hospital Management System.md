@@ -1213,6 +1213,6 @@ Select * from PatientServices.Patients
 Select * from MedicalManagement.MedicalRecords
 
 ```
-![Trigger Result](img/T1.PNG)
+![Trigger Result](img/T1.JPG)
 
 
