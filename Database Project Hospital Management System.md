@@ -1709,9 +1709,79 @@ Daily Frequency: Occurs once at 2:00:00 AM
 Start date: Pick today’s date (it defaults to now); no end date unless desired.
 ![](img/Agent_S7.png)
 ![](img/Agent_S8.png)
-OK to close schedule and job dialogs Click OK in the New Job dialog to save everything.
+
+5. Ensure Job is Enabled → Click OK to Save the Job
+You’ll return to the main New Job window. Confirm that:
+
+The job is enabled (default)
+Steps and schedules are properly set
+Click OK to finish creating the job.
 
 ![](img/Agent_S9.png)
+
+##  Doctor Schedule Report 
+• Job Name: Doctor_Daily_Schedule_Report 
+• Schedule: Every morning at 7:00 AM 
+• Action:
+        - A stored procedure that extracts the daily doctor schedule from Appointments and inserts it into a 
+            report table DoctorDailyScheduleLog.
+
+
+Step 1: Create the Report Table
+```sql
+CREATE TABLE DoctorsSchema.DoctorDailyScheduleLog (
+    LogID INT IDENTITY(1,1) PRIMARY KEY,
+    DoctorID INT,
+    DoctorName VARCHAR(100),
+    AppointmentDate DATE,
+    AppointmentTime TIME,
+    PatientID INT,
+    PatientName VARCHAR(100),
+    LogDate DATETIME DEFAULT GETDATE()
+);
+
+```
+Step 2: Create the Stored Procedure
+```sql
+CREATE PROCEDURE DoctorsSchema.sp_InsertDoctorDailySchedule
+AS
+BEGIN
+    SET NOCOUNT ON;--to improve the preformance of the system (Prevents Unnecessary Messages) 
+
+    DECLARE @Today DATE = CAST(GETDATE() AS DATE);
+
+    INSERT INTO DoctorsSchema.DoctorDailyScheduleLog (DoctorID, DoctorName, AppointmentDate, AppointmentTime, PatientID, PatientName)
+    SELECT 
+        A.DoctorID,
+        D.DoctorName,
+        A.AppointmentDate,
+        A.AppointmentTime,
+        A.PatientID,
+        P.PatientName
+    FROM DoctorsSchema.Appointments A
+    INNER JOIN DoctorsSchema.Doctors D ON A.DoctorID = D.DoctorID
+    INNER JOIN PatientsSchema.Patients P ON A.PatientID = P.PatientID
+    WHERE A.AppointmentDate = @Today;
+END;
+
+--I do not use VALUE keyword when I insert data to DoctorsSchema.DoctorDailyScheduleLog becouse in sql server there are two way to insert
+-- 1. INSERT INTO TableName (Column1, Column2) VALUES (Value1, Value2);
+
+--2. INSERT INTO TableName (Column1, Column2) SELECT Column1, Column2 FROM TableName;
+
+SELECT * FROM DoctorsSchema.DoctorDailyScheduleLog;
+
+
+```
+
+3. Step 3: Create the SQL Server Agent Job to Handle the Stored Procedure
+
+!['Steps'](img/D_Agent_Steps.png)
+!['Schedules'](img/D_Agent_Schedules.png)
+!['Schedules'](img/D_Agent_Schedules2.png)
+
+
+
 
 
 
