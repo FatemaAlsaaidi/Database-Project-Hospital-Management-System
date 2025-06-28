@@ -893,7 +893,7 @@ ORDER BY
 ```
 ![Query 5 Result](img/DQL5.JPG)
 
-6. Use SUBQUERIES and EXISTS. 
+6. Use SUBQUERIES and EXISTS.  (This query identifies the first and last names and specialty of physicians who have been diagnosed with high blood pressure.)
 ``` SQL
 SELECT
     S.S_FName,
@@ -948,6 +948,16 @@ SELECT
     dbo.fn_CalculatePatientAge(P.DBO) AS Age
 FROM
     PatientServices.Patients AS P;
+
+-- IF WE HAVE STORED PROCEDURE WITH NO TABLE
+Declare @Age Int;
+exec dbo.fn_CalculatePatientAge '1998/08/09', @Age OUTPUT;
+SELECT @Age;
+
+-- IF WE HAVE FUNCTION WITH NO TABLE 
+Declare @Age Int;
+SET @Age = dbo.fn_CalculatePatientAge('1998/08/08'); -- Call the function and assign its return value
+SELECT @Age;
 
 ```
 ![Function Result](img/F1.JPG)
