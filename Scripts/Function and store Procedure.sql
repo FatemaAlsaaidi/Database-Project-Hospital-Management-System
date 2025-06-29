@@ -21,7 +21,7 @@ BEGIN
 
     -- Calculate age by subtracting birth year from current year.
     -- Then, adjust if the birthday hasn't occurred yet this year.
-    SET @Age = DATEDIFF(year, @DateOfBirth, GETDATE());
+    SET @Age = DATEDIFF(year, @DateOfBirth, GETDATE()); 
 
     IF MONTH(@DateOfBirth) > MONTH(GETDATE()) OR
        (MONTH(@DateOfBirth) = MONTH(GETDATE()) AND DAY(@DateOfBirth) > DAY(GETDATE()))
@@ -32,14 +32,16 @@ BEGIN
     RETURN @Age;
 END;
 
--- test
-SELECT
-    P.P_FName,
-    P.P_LName,
-    P.DBO,
-    dbo.fn_CalculatePatientAge(P.DBO) AS Age
-FROM
-    PatientServices.Patients AS P;
+-- drop FUNCTION dbo.fn_CalculatePatientAge
+-- IF WE HAVE STORED PROCEDURE WITH NO TABLE
+Declare @Age Int;
+exec dbo.fn_CalculatePatientAge '1998/08/09', @Age OUTPUT;
+SELECT @Age;
+
+-- IF WE HAVE FUNCTION WITH NO TABLE 
+Declare @Age Int;
+SET @Age = dbo.fn_CalculatePatientAge('1998/08/08'); -- Call the function and assign its return value
+SELECT @Age;
 
 --2. Stored procedure to admit a patient (insert to Admissions, update Room availability).
 -- Description: Admits a patient to a room, updating room availability.
@@ -60,45 +62,82 @@ FROM
 --   SELECT @newAdmID AS NewAdmissionID;
 -- =======================================================
 CREATE PROCEDURE dbo.sp_AdmitPatient
--- Declare the inputes variable 
+(
     @P_ID INT,
     @Room_ID INT,
     @DateOut DATE,
     @AdmissionID INT OUTPUT
+)
 AS
 BEGIN
-    SET NOCOUNT ON; -- 
-	-- declare this variable to store the value which get from table 
-    DECLARE @IsRoomAvailable VARCHAR(10); 
+    SET NOCOUNT ON;
+
+    -- Declare variables with appropriate data types
+    DECLARE @RoomAvailabilityStatus VARCHAR(10); -- Renamed for clarity
     DECLARE @MaxAdmID INT;
+    DECLARE @CurrentPatientsInRoom INT; -- Renamed for clarity
+    DECLARE @RoomCapacity INT;          -- Renamed for clarity
 
     BEGIN TRY
-        -- Check room availability
-        SELECT @IsRoomAvailable = Available
-        FROM HospitalResources.Rooms
-        WHERE RoomID = @Room_ID;
+        -- Check if the Room_ID exists and get its availability status and capacity
+        SELECT
+            @RoomAvailabilityStatus = R.Available,
+            @RoomCapacity = R.Capacity
+        FROM
+            HospitalResources.Rooms AS R
+        WHERE
+            R.RoomID = @Room_ID;
 
-        IF @IsRoomAvailable = 'TRUE'
+        -- Handle case where Room_ID does not exist
+        IF @RoomAvailabilityStatus IS NULL
+        BEGIN
+            SET @AdmissionID = -1; -- Indicate room not found
+            PRINT 'Error: Room ID ' + CAST(@Room_ID AS NVARCHAR(10)) + ' does not exist.';
+            RETURN; -- Exit the procedure
+        END
+
+        -- Count the current number of patients admitted to this room
+        -- Only count active admissions (where DateOut is in the future or NULL)
+        SELECT
+            @CurrentPatientsInRoom = COUNT(AdmID)
+        FROM
+            PatientServices.Admissions
+        WHERE
+            Room_ID = @Room_ID
+            AND (DateOut IS NULL OR DateOut > GETDATE()); -- Assuming DateOut marks the end of admission
+
+        -- Determine if the room has space
+        IF @CurrentPatientsInRoom < @RoomCapacity
         BEGIN
             -- Generate a new unique Admission ID
-            SELECT @MaxAdmID = ISNULL(MAX(AdmID), 100) FROM PatientServices.Admissions;
-            SET @AdmissionID = @MaxAdmID + 1; -- add last admID +1 to generate the 
+            SELECT @MaxAdmID = ISNULL(MAX(AdmID), 0) FROM PatientServices.Admissions; -- Start from 0 to ensure first ID is 1
+            SET @AdmissionID = @MaxAdmID + 1;
 
             -- Insert into Admissions table
             INSERT INTO PatientServices.Admissions (AdmID, P_ID, Room_ID, DateIN, DateOut)
             VALUES (@AdmissionID, @P_ID, @Room_ID, GETDATE(), @DateOut);
 
-            -- Update Room availability
-            UPDATE HospitalResources.Rooms
-            SET Available = 'FALSE'
-            WHERE RoomID = @Room_ID;
+            -- Update Room availability based on new patient count
+            IF (@CurrentPatientsInRoom + 1) >= @RoomCapacity -- Check if the room becomes full AFTER this admission
+            BEGIN
+                UPDATE HospitalResources.Rooms
+                SET Available = 'FALSE'
+                WHERE RoomID = @Room_ID;
+            END
+            ELSE
+            BEGIN
+                -- Ensure it's marked TRUE if there's still capacity
+                UPDATE HospitalResources.Rooms
+                SET Available = 'TRUE'
+                WHERE RoomID = @Room_ID;
+            END
 
-            PRINT 'Patient admitted successfully. Admission ID: ' + CAST(@AdmissionID AS NVARCHAR(10)); -- CAST: It is a function used to convert a data type from one type to another.
+            PRINT 'Patient admitted successfully. Admission ID: ' + CAST(@AdmissionID AS NVARCHAR(10));
         END
         ELSE
         BEGIN
-            SET @AdmissionID = -1; -- Indicate admission failure
-            PRINT 'Error: Room is not available.';
+            SET @AdmissionID = -1; -- Indicate admission failure: Room is full or not available
+            PRINT 'Error: Room ' + CAST(@Room_ID AS NVARCHAR(10)) + ' is currently full.';
         END
     END TRY
     BEGIN CATCH
@@ -116,12 +155,13 @@ DECLARE @NewAdmissionID INT;
 -- Second: Call the stored procedure and pass the variable as output
 EXEC dbo.sp_AdmitPatient
     @P_ID = 1,              --This patient must be pre-existing.
-    @Room_ID = 101,         -- Room currently available (Available = 'TRUE')
+    @Room_ID = 19,         -- Room currently available (Available = 'TRUE')
     @DateOut = '2025-07-10',
     @AdmissionID = @NewAdmissionID OUTPUT;
 
 --Third: Display the resulting ID value
-SELECT @NewAdmissionID AS NewAdmissionID;
+SELECT @NewAdmissionID AS NewAdmissionID; -- -1 Unseccuseeful inseart in admiss
+
 --===============================
 -- =======================================================
 -- 3. Stored Procedure: sp_GenerateInvoice
@@ -198,31 +238,51 @@ SELECT *FROM PatientServices.Biling
 --     This procedure assumes Staff.Dep_ID tracks their current working assignment.
 -- Example Usage: EXEC dbo.sp_AssignDoctorToDepartmentAndShift @S_ID = 1, @NewDep_ID = 2, @NewShift = 'Evening';
 -- =======================================================
+--drop procedure dbo.sp_AssignDoctorToDepartmentAndShift
 CREATE PROCEDURE dbo.sp_AssignDoctorToDepartmentAndShift
     @S_ID INT,
     @NewDep_ID INT,
-    @NewShift VARCHAR(10)
+    @NewShift VARCHAR(10),
+    @SetStartTime Time,
+    @SetEndTime Time
 AS
 BEGIN
-    SET NOCOUNT ON;
-
     BEGIN TRY
+        -- Debugging: Print received parameters
+        PRINT 'Parameters received: S_ID=' + CAST(@S_ID AS NVARCHAR(10)) +
+              ', NewDep_ID=' + CAST(@NewDep_ID AS NVARCHAR(10)) +
+              ', NewShift=' + @NewShift +
+              ', StartTime=' + CONVERT(NVARCHAR(8), @SetStartTime, 108) +
+              ', EndTime=' + CONVERT(NVARCHAR(8), @SetEndTime, 108);
+
         -- Check if the Staff ID exists and belongs to a 'Doctor' role
-        IF EXISTS (SELECT 1 FROM SystemCore.Staff WHERE S_ID = @S_ID AND Role = 'Doctor')
+        IF EXISTS (SELECT 1 FROM SystemCore.Staff WHERE S_ID = @S_ID)
         BEGIN
+            PRINT 'S_ID ' + CAST(@S_ID AS NVARCHAR(10)) + ' found and is a Doctor.';
             -- Check if the NewDep_ID is a valid department
             IF EXISTS (SELECT 1 FROM SystemCore.Departments WHERE Dep_ID = @NewDep_ID)
             BEGIN
-                -- Update the doctor's department and shift in the Staff table
+                PRINT 'Dep_ID ' + CAST(@NewDep_ID AS NVARCHAR(10)) + ' is valid.';
+
+                -- Update the doctor's department in Staff table
                 UPDATE SystemCore.Staff
                 SET
-                    Dep_ID = @NewDep_ID,
-                    S_Shift = @NewShift
+                    Dep_ID = @NewDep_ID
                 WHERE
                     S_ID = @S_ID;
-				-- print this massage to the user 
+                PRINT 'Staff table updated. Rows affected: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+                -- Inseart The doctor's shift in the Staff_Shift table
+				INSERT INTO SystemCore.Staff_Shift (ShiftName, S_ID, StartTime, EndTime)VALUES (@NewShift, @S_ID, @SetStartTime, @SetEndTime);
+
+
+                PRINT 'Staff_Shift table Inseart.'
+
+                -- print this message to the user
                 PRINT 'Doctor ' + CAST(@S_ID AS NVARCHAR(10)) + ' assigned to Department ID ' +
-                      CAST(@NewDep_ID AS NVARCHAR(10)) + ' and ' + @NewShift + ' shift successfully.';
+                      CAST(@NewDep_ID AS NVARCHAR(10)) + ' and ' + @NewShift + ' from ' +
+                      CONVERT(NVARCHAR(8), @SetStartTime, 108) + ' to ' +
+                      CONVERT(NVARCHAR(8), @SetEndTime, 108) +' shift successfully.';
             END
             ELSE
             BEGIN
@@ -237,10 +297,25 @@ BEGIN
     BEGIN CATCH
         -- Handle errors
         PRINT 'An error occurred during doctor assignment: ' + ERROR_MESSAGE();
+        PRINT 'Error Line: ' + CAST(ERROR_LINE() AS NVARCHAR(10));
+        PRINT 'Error State: ' + CAST(ERROR_STATE() AS NVARCHAR(10));
+        PRINT 'Error Severity: ' + CAST(ERROR_SEVERITY() AS NVARCHAR(10));
     END CATCH
 END;
 GO
 
-EXEC dbo.sp_AssignDoctorToDepartmentAndShift @S_ID = 1, @NewDep_ID = 2, @NewShift = 'Evening';
+select * from SystemCore.Staff
+Select * from SystemCore.Staff_Shift
+
+Go 
+
+EXEC dbo.sp_AssignDoctorToDepartmentAndShift
+    @S_ID = 7, -- Replace with actual S_ID
+    @NewDep_ID = 1, -- Replace with actual Department ID
+    @NewShift = 'Evening', -- Replace with actual shift name
+    @SetStartTime = '08:00:00',
+    @SetEndTime = '16:00:00';
+Go 
 
 select * from SystemCore.Staff
+Select * from SystemCore.Staff_Shift
