@@ -954,7 +954,7 @@ Declare @Age Int;
 exec dbo.fn_CalculatePatientAge '1998/08/09', @Age OUTPUT;
 SELECT @Age;
 
--- IF WE HAVE FUNCTION WITH NO TABLE 
+-- IF WE HAVE FUNCTION WITH NO TABLE
 Declare @Age Int;
 SET @Age = dbo.fn_CalculatePatientAge('1998/08/08'); -- Call the function and assign its return value
 SELECT @Age;
@@ -971,8 +971,6 @@ SELECT @Age;
 --   @DateOut DATE: The expected or actual date of discharge.
 --   @AdmissionID INT OUTPUT: Outputs the newly generated Admission ID.
 -- Remarks:
---   - Assumes AdmID is UNIQUE but not IDENTITY in your table structure based on your original DDL.
---     If AdmID is IDENTITY, remove it from the INSERT and output SCOPE_IDENTITY().
 --   - This procedure checks if the room is available before admitting.
 --   - The AdmID is generated here using MAX(AdmID) + 1 for simplicity. In a real system,
 --     consider using a sequence object for robust ID generation.
@@ -982,45 +980,82 @@ SELECT @Age;
 --   SELECT @newAdmID AS NewAdmissionID;
 -- =======================================================
 CREATE PROCEDURE dbo.sp_AdmitPatient
--- Declare the inputes variable 
+(
     @P_ID INT,
     @Room_ID INT,
     @DateOut DATE,
     @AdmissionID INT OUTPUT
+)
 AS
 BEGIN
-    SET NOCOUNT ON; -- 
-	-- declare this variable to store the value which get from table 
-    DECLARE @IsRoomAvailable VARCHAR(10); 
+    SET NOCOUNT ON;
+
+    -- Declare variables with appropriate data types
+    DECLARE @RoomAvailabilityStatus VARCHAR(10); -- Renamed for clarity
     DECLARE @MaxAdmID INT;
+    DECLARE @CurrentPatientsInRoom INT; -- Renamed for clarity
+    DECLARE @RoomCapacity INT;          -- Renamed for clarity
 
     BEGIN TRY
-        -- Check room availability
-        SELECT @IsRoomAvailable = Available
-        FROM HospitalResources.Rooms
-        WHERE RoomID = @Room_ID;
+        -- Check if the Room_ID exists and get its availability status and capacity
+        SELECT
+            @RoomAvailabilityStatus = R.Available,
+            @RoomCapacity = R.Capacity
+        FROM
+            HospitalResources.Rooms AS R
+        WHERE
+            R.RoomID = @Room_ID;
 
-        IF @IsRoomAvailable = 'TRUE'
+        -- Handle case where Room_ID does not exist
+        IF @RoomAvailabilityStatus IS NULL
+        BEGIN
+            SET @AdmissionID = -1; -- Indicate room not found
+            PRINT 'Error: Room ID ' + CAST(@Room_ID AS NVARCHAR(10)) + ' does not exist.';
+            RETURN; -- Exit the procedure
+        END
+
+        -- Count the current number of patients admitted to this room
+        -- Only count active admissions (where DateOut is in the future or NULL)
+        SELECT
+            @CurrentPatientsInRoom = COUNT(AdmID)
+        FROM
+            PatientServices.Admissions
+        WHERE
+            Room_ID = @Room_ID
+            AND (DateOut IS NULL OR DateOut > GETDATE()); -- Assuming DateOut marks the end of admission
+
+        -- Determine if the room has space
+        IF @CurrentPatientsInRoom < @RoomCapacity
         BEGIN
             -- Generate a new unique Admission ID
-            SELECT @MaxAdmID = ISNULL(MAX(AdmID), 100) FROM PatientServices.Admissions;
-            SET @AdmissionID = @MaxAdmID + 1; -- add last admID +1 to generate the 
+            SELECT @MaxAdmID = ISNULL(MAX(AdmID), 0) FROM PatientServices.Admissions; -- Start from 0 to ensure first ID is 1
+            SET @AdmissionID = @MaxAdmID + 1;
 
             -- Insert into Admissions table
             INSERT INTO PatientServices.Admissions (AdmID, P_ID, Room_ID, DateIN, DateOut)
             VALUES (@AdmissionID, @P_ID, @Room_ID, GETDATE(), @DateOut);
 
-            -- Update Room availability
-            UPDATE HospitalResources.Rooms
-            SET Available = 'FALSE'
-            WHERE RoomID = @Room_ID;
+            -- Update Room availability based on new patient count
+            IF (@CurrentPatientsInRoom + 1) >= @RoomCapacity -- Check if the room becomes full AFTER this admission
+            BEGIN
+                UPDATE HospitalResources.Rooms
+                SET Available = 'FALSE'
+                WHERE RoomID = @Room_ID;
+            END
+            ELSE
+            BEGIN
+                -- Ensure it's marked TRUE if there's still capacity
+                UPDATE HospitalResources.Rooms
+                SET Available = 'TRUE'
+                WHERE RoomID = @Room_ID;
+            END
 
-            PRINT 'Patient admitted successfully. Admission ID: ' + CAST(@AdmissionID AS NVARCHAR(10)); -- CAST: It is a function used to convert a data type from one type to another.
+            PRINT 'Patient admitted successfully. Admission ID: ' + CAST(@AdmissionID AS NVARCHAR(10));
         END
         ELSE
         BEGIN
-            SET @AdmissionID = -1; -- Indicate admission failure
-            PRINT 'Error: Room is not available.';
+            SET @AdmissionID = -1; -- Indicate admission failure: Room is full or not available
+            PRINT 'Error: Room ' + CAST(@Room_ID AS NVARCHAR(10)) + ' is currently full.';
         END
     END TRY
     BEGIN CATCH
@@ -1038,14 +1073,15 @@ DECLARE @NewAdmissionID INT;
 -- Second: Call the stored procedure and pass the variable as output
 EXEC dbo.sp_AdmitPatient
     @P_ID = 1,              --This patient must be pre-existing.
-    @Room_ID = 101,         -- Room currently available (Available = 'TRUE')
+    @Room_ID = 19,         -- Room currently available (Available = 'TRUE')
     @DateOut = '2025-07-10',
     @AdmissionID = @NewAdmissionID OUTPUT;
 
 --Third: Display the resulting ID value
-SELECT @NewAdmissionID AS NewAdmissionID;
+SELECT @NewAdmissionID AS NewAdmissionID; -- -1 Unseccuseeful inseart in admiss
+
 ```
-![Procedure Result](img/SP1.PNG)
+![Procedure Result](img/SP1.JPG)
 
 3. Procedure to generate invoice (insert into Billing based on treatments). 
 ```sql
