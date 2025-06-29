@@ -1507,10 +1507,10 @@ WHERE RoomID = 22;
 
 ```
 TEST 1
-![Trigger Result](img/T3_TEST1.JPG) 
+![Trigger Result](img/T3_TEST0.JPG) 
 
 TEST 2
-![Trigger Result](img/T3_TEST2.JPG) 
+![Trigger Result](img/T3_TEST00.JPG) 
 
 
 ### Security (DCL) 
