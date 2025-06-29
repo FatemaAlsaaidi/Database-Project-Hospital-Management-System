@@ -331,6 +331,57 @@ Add CONSTRAINT FK_Staff_Department_NursingCare_Departments FOREIGN KEY (Dep_ID) 
 ON DELETE NO ACTION
 ON UPDATE NO ACTION
 
+
+
+-- detele shilft column from staff table and created new table for shift data fot every staff
+ALTER TABLE SystemCore.Staff
+DROP COLUMN S_Shift;
+
+-- create shift table 
+
+CREATE TABLE dbo.Staff_Shift (
+    ShiftName NVARCHAR(50) NOT NULL, -- Name of the shift (e.g., Morning, Evening, Night)
+	S_ID INT NOT NULL,
+    StartTime TIME NOT NULL, -- Start time of the shift
+    EndTime TIME NOT NULL, -- End time of the shift
+	primary key ( ShiftName, S_ID) -- composit key 
+);
+
+-- add the staff_shift table to Systemcore Schema
+ALTER SCHEMA SystemCore TRANSFER dbo.Staff_Shift;
+
+-- link staff_shift table with staff table 
+alter table SystemCore.Staff_Shift
+Add CONSTRAINT FK_staff_shift_Staff FOREIGN KEY (S_ID) REFERENCES SystemCore.Staff(S_ID)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+
+-- delete services column from billing table and create its sperete table called" Billing_Services"
+
+ALTER TABLE PatientServices.Biling
+DROP COLUMN B_Services;
+
+-- create composite key for the billing table 
+ALTER TABLE PatientServices.Biling
+add primary key (Biling_ID, P_ID)
+
+-- create table 
+CREATE TABLE dbo.Billing_Services (
+    B_Services Varchar(50) Not null,
+	Biling_ID int Not null, -- foreign key for the primary key which represent as composite key in Billing table 
+	P_ID INT NOT NULL -- foreign key for the primary key which represent as composite key in Billing table
+);
+
+-- add the staff_shift table to Systemcore Schema
+ALTER SCHEMA PatientServices TRANSFER dbo.Billing_Services;
+
+alter table PatientServices.Billing_Services
+Add CONSTRAINT FK_Billing_Services_Billing FOREIGN KEY (Biling_ID, P_ID) REFERENCES PatientServices.Biling(Biling_ID, P_ID)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+
 ```
 
 ### DML (INSERTION OF THE DATA)
@@ -550,6 +601,7 @@ INSERT INTO Users (Username, S_ID, Password) VALUES
 
 
 -- 9. Inserting data into Admissions Table (20 values)
+--select * from Rooms
 INSERT INTO Admissions (AdmID, P_ID, Room_ID, DateIN, DateOut) VALUES
 (101, 1, 6, '2023-01-05', '2023-01-10'),
 (102, 2, 7, '2023-01-07', '2023-01-12'),
@@ -566,9 +618,9 @@ INSERT INTO Admissions (AdmID, P_ID, Room_ID, DateIN, DateOut) VALUES
 (113, 13, 18, '2023-02-05', '2023-02-12'),
 (114, 14, 19, '2023-02-07', '2023-02-09'),
 (115, 15, 20, '2023-02-10', '2023-02-13'),
-(116, 16, 21, '2023-02-12', '2023-02-16'),
-(117, 17, 22, '2023-02-14', '2023-02-20'),
-(118, 18, 23, '2023-02-16', '2023-02-17'),
+(116, 16, 3, '2023-02-12', '2023-02-16'),
+(117, 17, 2, '2023-02-14', '2023-02-20'),
+(118, 18, 1, '2023-02-16', '2023-02-17'),
 (119, 19, 6, '2023-02-18', '2023-02-22'),
 (120, 20, 7, '2023-02-20', '2023-02-25');
 
@@ -722,6 +774,44 @@ INSERT INTO Staff_Department_NursingCare (S_ID, Dep_ID) VALUES
 (17, 17), -- Dr. Abdullah in Gastroenterology
 (19, 19); -- Dr. Mona in Psychiatry
 
+--Select * from SystemCore.Staff
+
+INSERT INTO SystemCore.Staff_Shift(S_ID, ShiftName, StartTime, EndTime) VALUES
+(7, 'Morning', '07:00:00', '15:00:00'),
+(10, 'Evening', '15:00:00', '23:00:00'),
+(11, 'Night', '23:00:00', '07:00:00'), 
+(12, 'Morning', '07:00:00', '15:00:00'),
+(8, 'Evening', '15:00:00', '23:00:00'),
+(7, 'Night', '23:00:00', '07:00:00'), 
+(13, 'Morning', '07:00:00', '15:00:00'),
+(14, 'Evening', '15:00:00', '23:00:00'),
+(10, 'Night', '23:00:00', '07:00:00'), 
+(15, 'Morning', '07:00:00', '15:00:00'),
+(16, 'Evening', '15:00:00', '23:00:00'),
+(13, 'Night', '23:00:00', '07:00:00');
+
+-- inseration satement to Billing_Services table 
+INSERT INTO PatientServices.Billing_Services (B_Services, Biling_ID, P_ID) VALUES
+('Consultation', 3001, 1),
+('Lab Tests', 3001, 1),
+('Medication', 3001, 1),
+('Consultation', 3002, 2),
+('Medication', 3002, 2),
+('X-ray', 3003, 3),
+('Cast Application', 3003, 3),
+('Topical Cream', 3004, 4),
+('Consultation', 3005, 5),
+('Chemotherapy Session', 3006, 6),
+('Emergency Visit', 3007, 7),
+('Surgery', 3007, 7),
+('Consultation', 3008, 8),
+('X-ray', 3008, 8),
+('Lab Tests', 3009, 9),
+('Consultation', 3010, 10),
+('Oxygen Therapy', 3012, 12),
+('Physiotherapy', 3013, 13),
+('Phototherapy', 3014, 14),
+('Surgical Consultation', 3020, 20);
 
 ```
 
@@ -1112,7 +1202,6 @@ CREATE PROCEDURE dbo.sp_GenerateInvoice
     @BillingID INT OUTPUT
 AS
 BEGIN
-    SET NOCOUNT ON;
     DECLARE @MaxBillingID INT;
 
     BEGIN TRY
@@ -1136,6 +1225,7 @@ GO
 
 ```
 ![Procedure Result](img/SP2.PNG)
+
 
 4. Procedure to assign doctor to department and shift. 
 ```sql

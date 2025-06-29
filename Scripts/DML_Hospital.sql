@@ -385,3 +385,42 @@ INSERT INTO Staff_Department_NursingCare (S_ID, Dep_ID) VALUES
 (15, 15), -- Dr. Omar in ENT
 (17, 17), -- Dr. Abdullah in Gastroenterology
 (19, 19); -- Dr. Mona in Psychiatry
+
+--Select * from SystemCore.Staff
+
+INSERT INTO SystemCore.Staff_Shift(S_ID, ShiftName, StartTime, EndTime) VALUES
+(7, 'Morning', '07:00:00', '15:00:00'),
+(10, 'Evening', '15:00:00', '23:00:00'),
+(11, 'Night', '23:00:00', '07:00:00'), 
+(12, 'Morning', '07:00:00', '15:00:00'),
+(8, 'Evening', '15:00:00', '23:00:00'),
+(7, 'Night', '23:00:00', '07:00:00'), 
+(13, 'Morning', '07:00:00', '15:00:00'),
+(14, 'Evening', '15:00:00', '23:00:00'),
+(10, 'Night', '23:00:00', '07:00:00'), 
+(15, 'Morning', '07:00:00', '15:00:00'),
+(16, 'Evening', '15:00:00', '23:00:00'),
+(13, 'Night', '23:00:00', '07:00:00');
+
+-- inseration satement to Billing_Services table 
+INSERT INTO PatientServices.Billing_Services (B_Services, Biling_ID, P_ID) VALUES
+('Consultation', 3001, 1),
+('Lab Tests', 3001, 1),
+('Medication', 3001, 1),
+('Consultation', 3002, 2),
+('Medication', 3002, 2),
+('X-ray', 3003, 3),
+('Cast Application', 3003, 3),
+('Topical Cream', 3004, 4),
+('Consultation', 3005, 5),
+('Chemotherapy Session', 3006, 6),
+('Emergency Visit', 3007, 7),
+('Surgery', 3007, 7),
+('Consultation', 3008, 8),
+('X-ray', 3008, 8),
+('Lab Tests', 3009, 9),
+('Consultation', 3010, 10),
+('Oxygen Therapy', 3012, 12),
+('Physiotherapy', 3013, 13),
+('Phototherapy', 3014, 14),
+('Surgical Consultation', 3020, 20);

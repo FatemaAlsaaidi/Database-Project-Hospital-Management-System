@@ -303,3 +303,53 @@ alter table Staff_Department_NursingCare
 Add CONSTRAINT FK_Staff_Department_NursingCare_Departments FOREIGN KEY (Dep_ID) REFERENCES Departments(Dep_ID)
 ON DELETE NO ACTION
 ON UPDATE NO ACTION
+
+
+
+-- detele shilft column from staff table and created new table for shift data fot every staff
+ALTER TABLE SystemCore.Staff
+DROP COLUMN S_Shift;
+
+-- create shift table 
+
+CREATE TABLE dbo.Staff_Shift (
+    ShiftName NVARCHAR(50) NOT NULL, -- Name of the shift (e.g., Morning, Evening, Night)
+	S_ID INT NOT NULL,
+    StartTime TIME NOT NULL, -- Start time of the shift
+    EndTime TIME NOT NULL, -- End time of the shift
+	primary key ( ShiftName, S_ID) -- composit key 
+);
+
+-- add the staff_shift table to Systemcore Schema
+ALTER SCHEMA SystemCore TRANSFER dbo.Staff_Shift;
+
+-- link staff_shift table with staff table 
+alter table SystemCore.Staff_Shift
+Add CONSTRAINT FK_staff_shift_Staff FOREIGN KEY (S_ID) REFERENCES SystemCore.Staff(S_ID)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+
+-- delete services column from billing table and create its sperete table called" Billing_Services"
+
+ALTER TABLE PatientServices.Biling
+DROP COLUMN B_Services;
+
+-- create composite key for the billing table 
+ALTER TABLE PatientServices.Biling
+add primary key (Biling_ID, P_ID)
+
+-- create table 
+CREATE TABLE dbo.Billing_Services (
+    B_Services Varchar(50) Not null,
+	Biling_ID int Not null, -- foreign key for the primary key which represent as composite key in Billing table 
+	P_ID INT NOT NULL -- foreign key for the primary key which represent as composite key in Billing table
+);
+
+-- add the staff_shift table to Systemcore Schema
+ALTER SCHEMA PatientServices TRANSFER dbo.Billing_Services;
+
+alter table PatientServices.Billing_Services
+Add CONSTRAINT FK_Billing_Services_Billing FOREIGN KEY (Biling_ID, P_ID) REFERENCES PatientServices.Biling(Biling_ID, P_ID)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
