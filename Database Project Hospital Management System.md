@@ -1340,8 +1340,6 @@ ON MedicalManagement.Patient_Doctor_Appointments
 AFTER INSERT
 AS
 BEGIN
-    SET NOCOUNT ON;
-
     -- For each new appointment inserted, create a corresponding medical record entry.
     INSERT INTO MedicalManagement.MedicalRecords (
         Record_ID,
@@ -1354,7 +1352,7 @@ BEGIN
         Treatment_Plans
     )
     SELECT
-        -- Generate a new Record_ID (assuming it's not an IDENTITY column, if it is, remove this line)
+        -- Generate a new Record_ID 
         ISNULL((SELECT MAX(Record_ID) FROM MedicalManagement.MedicalRecords), 2000) + ROW_NUMBER() OVER (ORDER BY I.P_ID),
         I.P_ID,
         I.S_ID,
@@ -1387,6 +1385,7 @@ Select * from MedicalManagement.MedicalRecords
 ```
 ![Trigger Result](img/T1.JPG)
 
+
 2. Before delete on Patients → prevent deletion if pending bills exist.
 ```sql
 CREATE TRIGGER trg_Patients_PreventDeleteIfPendingBills
@@ -1394,7 +1393,6 @@ ON PatientServices.Patients
 INSTEAD OF DELETE
 AS
 BEGIN
-    SET NOCOUNT ON;
 
     -- Check if any patient being deleted has bills with a Total_Cost greater than 0
     IF EXISTS (
@@ -1439,7 +1437,6 @@ ON HospitalResources.Rooms
 AFTER UPDATE
 AS
 BEGIN
-    SET NOCOUNT ON;
 
     -- Scenario 1: Preventing marking an occupied room as available
     IF UPDATE(Available) AND EXISTS (
