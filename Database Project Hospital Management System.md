@@ -1247,28 +1247,47 @@ GO
 CREATE PROCEDURE dbo.sp_AssignDoctorToDepartmentAndShift
     @S_ID INT,
     @NewDep_ID INT,
-    @NewShift VARCHAR(10)
+    @NewShift VARCHAR(10),
+    @SetStartTime Time,
+    @SetEndTime Time
 AS
 BEGIN
-    SET NOCOUNT ON;
-
     BEGIN TRY
+        -- Debugging: Print received parameters
+        PRINT 'Parameters received: S_ID=' + CAST(@S_ID AS NVARCHAR(10)) +
+              ', NewDep_ID=' + CAST(@NewDep_ID AS NVARCHAR(10)) +
+              ', NewShift=' + @NewShift +
+              ', StartTime=' + CONVERT(NVARCHAR(8), @SetStartTime, 108) +
+              ', EndTime=' + CONVERT(NVARCHAR(8), @SetEndTime, 108);
+
         -- Check if the Staff ID exists and belongs to a 'Doctor' role
-        IF EXISTS (SELECT 1 FROM SystemCore.Staff WHERE S_ID = @S_ID AND Role = 'Doctor')
+        IF EXISTS (SELECT 1 FROM SystemCore.Staff WHERE S_ID = @S_ID)
         BEGIN
+            PRINT 'S_ID ' + CAST(@S_ID AS NVARCHAR(10)) + ' found and is a Doctor.';
             -- Check if the NewDep_ID is a valid department
             IF EXISTS (SELECT 1 FROM SystemCore.Departments WHERE Dep_ID = @NewDep_ID)
             BEGIN
-                -- Update the doctor's department and shift in the Staff table
+                PRINT 'Dep_ID ' + CAST(@NewDep_ID AS NVARCHAR(10)) + ' is valid.';
+
+                -- Update the doctor's department in Staff table
                 UPDATE SystemCore.Staff
                 SET
-                    Dep_ID = @NewDep_ID,
-                    S_Shift = @NewShift
+                    Dep_ID = @NewDep_ID
                 WHERE
                     S_ID = @S_ID;
-				-- print this massage to the user 
+                PRINT 'Staff table updated. Rows affected: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+                -- Inseart The doctor's shift in the Staff_Shift table
+				INSERT INTO SystemCore.Staff_Shift (ShiftName, S_ID, StartTime, EndTime)VALUES (@NewShift, @S_ID, @SetStartTime, @SetEndTime);
+
+
+                PRINT 'Staff_Shift table Inseart.'
+
+                -- print this message to the user
                 PRINT 'Doctor ' + CAST(@S_ID AS NVARCHAR(10)) + ' assigned to Department ID ' +
-                      CAST(@NewDep_ID AS NVARCHAR(10)) + ' and ' + @NewShift + ' shift successfully.';
+                      CAST(@NewDep_ID AS NVARCHAR(10)) + ' and ' + @NewShift + ' from ' +
+                      CONVERT(NVARCHAR(8), @SetStartTime, 108) + ' to ' +
+                      CONVERT(NVARCHAR(8), @SetEndTime, 108) +' shift successfully.';
             END
             ELSE
             BEGIN
@@ -1283,15 +1302,30 @@ BEGIN
     BEGIN CATCH
         -- Handle errors
         PRINT 'An error occurred during doctor assignment: ' + ERROR_MESSAGE();
+        PRINT 'Error Line: ' + CAST(ERROR_LINE() AS NVARCHAR(10));
+        PRINT 'Error State: ' + CAST(ERROR_STATE() AS NVARCHAR(10));
+        PRINT 'Error Severity: ' + CAST(ERROR_SEVERITY() AS NVARCHAR(10));
     END CATCH
 END;
 GO
 
-EXEC dbo.sp_AssignDoctorToDepartmentAndShift @S_ID = 1, @NewDep_ID = 2, @NewShift = 'Evening';
+select * from SystemCore.Staff
+Select * from SystemCore.Staff_Shift
+
+Go 
+
+EXEC dbo.sp_AssignDoctorToDepartmentAndShift
+    @S_ID = 7, -- Replace with actual S_ID
+    @NewDep_ID = 1, -- Replace with actual Department ID
+    @NewShift = 'Evening', -- Replace with actual shift name
+    @SetStartTime = '08:00:00',
+    @SetEndTime = '16:00:00';
+Go 
 
 select * from SystemCore.Staff
+Select * from SystemCore.Staff_Shift
 ```
-![Procedure Result](img/SP3.PNG)
+![Procedure Result](img/SP3.JPG)
 
 ### Triggers
 1. After insert on Appointments → auto log in MedicalRecords. 
