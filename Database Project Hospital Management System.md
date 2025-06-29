@@ -17,10 +17,12 @@
 ![ER Diagram](img/HospitalManagementSystem-ERD.png)
 
 ## Mapping
-![Mapping](img/HospitalManagementSystem-Mapping.png)
+![Mapping](img/HospitalManagementSystem-Mapping.png) 
+
 
 ## Normalization
-![Normalization](img/HospitalManagementSystem-Normlization.png)
+![Normalization](img/HospitalManagementSystem-Normlization.png) 
+
 
 ## SQL Queries
 ### DDL (CREATION and AlTERATIONS STATEMENTS))
