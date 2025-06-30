@@ -1898,7 +1898,7 @@ Click OK to finish creating the job.
 
 Step 1: Create the Report Table
 ```sql
-CREATE TABLE DoctorsSchema.DoctorDailyScheduleLog (
+CREATE TABLE SystemCore.DoctorDailyScheduleLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
     DoctorID INT,
     DoctorName VARCHAR(100),
@@ -1909,45 +1909,46 @@ CREATE TABLE DoctorsSchema.DoctorDailyScheduleLog (
     LogDate DATETIME DEFAULT GETDATE()
 );
 
+
 ```
 Step 2: Create the Stored Procedure
 ```sql
-CREATE PROCEDURE DoctorsSchema.sp_InsertDoctorDailySchedule
+CREATE PROCEDURE SystemCore.sp_InsertDoctorDailySchedule
 AS
 BEGIN
     SET NOCOUNT ON;--to improve the preformance of the system (Prevents Unnecessary Messages) 
 
     DECLARE @Today DATE = CAST(GETDATE() AS DATE);
 
-    INSERT INTO DoctorsSchema.DoctorDailyScheduleLog (DoctorID, DoctorName, AppointmentDate, AppointmentTime, PatientID, PatientName)
+    INSERT INTO SystemCore.DoctorDailyScheduleLog (DoctorID, DoctorName, AppointmentDate, AppointmentTime, PatientID, PatientName)
     SELECT 
-        A.DoctorID,
-        D.DoctorName,
+        A.S_ID,
+        S.S_FName + ' ' + s.S_LName AS DoctoreFullName,
         A.AppointmentDate,
         A.AppointmentTime,
-        A.PatientID,
-        P.PatientName
-    FROM DoctorsSchema.Appointments A
-    INNER JOIN DoctorsSchema.Doctors D ON A.DoctorID = D.DoctorID
-    INNER JOIN PatientsSchema.Patients P ON A.PatientID = P.PatientID
-    WHERE A.AppointmentDate = @Today;
+        A.P_ID,
+        P.P_FName + '  ' + P.P_LName AS PatientFullName
+    FROM MedicalManagement.Patient_Doctor_Appointments A
+    INNER JOIN MedicalManagement.Doctors D ON D.S_ID = A.S_ID and  D.Dep_ID = A.Dep_ID
+    INNER JOIN PatientServices .Patients P ON P.P_ID = A.P_ID
+	INNER JOIN SystemCore.Staff S ON  S.S_ID= D.S_ID
+    WHERE A.AppointmentDate = @Today and S.Role = 'Doctor';
 END;
 
---I do not use VALUE keyword when I insert data to DoctorsSchema.DoctorDailyScheduleLog becouse in sql server there are two way to insert
--- 1. INSERT INTO TableName (Column1, Column2) VALUES (Value1, Value2);
 
---2. INSERT INTO TableName (Column1, Column2) SELECT Column1, Column2 FROM TableName;
 
-SELECT * FROM DoctorsSchema.DoctorDailyScheduleLog;
-
+SELECT * FROM SystemCore.DoctorDailyScheduleLog;
 
 ```
 
 3. Step 3: Create the SQL Server Agent Job to Handle the Stored Procedure
 
-!['Steps'](img/D_Agent_Steps.png)
-!['Schedules'](img/D_Agent_Schedules.png)
-!['Schedules'](img/D_Agent_Schedules2.png)
+![](img/Agent2_S1.png)
+![](img/Agent2_S2.png)
+![](img/Agent2_S3.png)
+![](img/Agent2_S4.png)
+
+
 
 
 
