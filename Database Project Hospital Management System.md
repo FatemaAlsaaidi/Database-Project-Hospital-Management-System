@@ -1852,12 +1852,10 @@ Database: master (or the target DB if needed)
 
 Command:
 ```sql
-Copy
-Edit
-BACKUP DATABASE HospitalManagmentDB
-  TO DISK = 'C:\SQLBackups\HospitalManagmentDB.bak'
-  WITH FORMAT, INIT, NAME = 'HospitalManagmentDB-Full Backup';
 
+BACKUP DATABASE HospitalDB
+TO DISK = 'c:\Backup\HospitalManagementSystem.bak'
+WITH INIT, COMPRESSION;
 ```
 Optionally set retry attempts (e.g. 1) and retry interval (e.g. 5 minutes).
 
