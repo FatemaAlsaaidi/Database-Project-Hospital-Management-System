@@ -1864,6 +1864,7 @@ Optionally set retry attempts (e.g. 1) and retry interval (e.g. 5 minutes).
 ![](img/Agent_S4.png)
 ![](img/Agent_S5.png)
 ![](img/Agent_S6.png)
+![](img/Agent_S10.png)
 
 4. Go to Schedules → New…
 Click New to define a schedule. In the dialog:
