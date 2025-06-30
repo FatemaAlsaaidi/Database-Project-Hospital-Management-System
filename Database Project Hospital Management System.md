@@ -1830,6 +1830,8 @@ Option 1: Daily Backup Job
 • Action: Database backup
 
 **Step-by-Step SSMS GUI Guide**
+1. Create backup for current database
+2. Copy link of backup path
 1. Open SQL Server Agent → Right‑click Jobs → New Job…
 In Object Explorer, expand your server, expand SQL Server Agent, right-click Jobs, and select New Job….
 !['In Object Explorer'](img/Agent_S1.png)
