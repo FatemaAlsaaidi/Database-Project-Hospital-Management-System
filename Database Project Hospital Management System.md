@@ -1950,6 +1950,131 @@ SELECT * FROM SystemCore.DoctorDailyScheduleLog;
 ![](img/Agent2_S3.png)
 ![](img/Agent2_S4.png)
 
+# Bonus Challenge (Optional)
+- Set up a SQL job that:
+    ** Sends an email alert if any doctor has more than 10 appointments per day.
+
+**Step 1: Enable Database Mail and Configure Email**
+    1. In SSMS, go to Management > Database Mail.
+    ![](img/EmailAlart_1.png)
+    2. Right-click and select Configure Database Mail.
+    ![](img/EmailAlart_2.png))
+    3. Follow the wizard to set up a new profile with SMTP settings for your email server.
+        - 3.1 Choose “Set up Database Mail by performing the following tasks” > Click Next.
+        ![](img/EmailAlart_3.png))
+        - 3.2 Create a New Profile:
+          - Profile Name: Give it a name like HospitalAlertProfile.
+          - Description: Optional (e.g., "Used for hospital system alerts").
+          - Click Add to add an SMTP account.
+          ![](img/EmailAlart_3.1.png) 
+        - 3.3  Configure SMTP Account:
+            - Account Name:  Example : (HospitalSMTPAccount)
+            - Description: Can leve it blank
+            - Email address: Write address email that will send the email for the user (yourgmail@gmail.com)
+            - Display name: You name or company name that send the email (Doctor Appointment Alert )
+            - Reply email: 'fatemaalsaaidi116@gmail.com'
+            - Server Name: smtp.gmail.com
+            - Port number: 587
+            - Check This server requires a secure connection (SSL)
+            - Chech Authentication - Basic
+            - User name: Your full Gmail address > 'fatemaalsaaidi116@gmail.com'
+            ![](img/EmailAlart_3.2.png) 
+            ![](img/EmailAlart_3.3.png) 
+            - Password: 
+                - Step 1: Enable 2-Step Verification:
+                    - Go to Google Account Security
+                    - Under "Signing in to Google", enable 2-Step Verification        
+                - Step 2: Step 2: Generate an App Password:
+                    - After enabling 2FA, go to:
+                    https://myaccount.google.com/apppasswords
+                    - In the "App name" box, type something descriptive — for example: SQL Server or Hospital SMTP
+                    - A yellow popup box will appear with a 16-character password, like:abcd efgh ijkl mnop
+                    - So my app password: 'qllbzxbksbjjikkp'
+        - 3.4 Click OK to save the SMTP account, then Next to continue.
+        ![](img/EmailAlart_3.3.1.png)
+        ![](img/EmailAlart_3.3.2.png)
+        ![](img/EmailAlart_3.3.2.1.png)
+        -4. 4. Set the profile as public or private:
+            - Public: All users can use this profile.
+            - Private: Only specific users can use it.
+        ![](img/EmailAlart_3.4.png)
+        ![](img/EmailAlart_3.4.1.png)
+        ![](img/EmailAlart_3.4.2.png)
+        ![](img/EmailAlart_3.4.3.png)
+
+
+
+**Step 2: Configure the SQL Job to Send Email Alerts**
+1. Open SQL Server Agent
+    - In SQL Server Management Studio (SSMS):
+    - Go to Object Explorer
+    - Expand SQL Server Agent    
+    - Right-click on Jobs → Choose New Job...
+
+ ![](img/EmailAlart2_1.png) 
+
+2. Create a New Job
+    - Name: DailyDoctorAppointmentAlert
+    - Description: "Sends email alert if any doctor has more than 10 appointments per day"
+![](img/EmailAlart2_2.png)        
+3. Add a Job Step
+
+    - Go to the Steps page → Click New..
+    ![]()
+    - Fill in like this:
+      - Step name: Check Appointments
+      - Type: Transact-SQL script (T-SQL)
+      - Database: HospitalManagementSystem        
+      - Command:
+```SQL
+IF EXISTS (
+SELECT A.S_ID, A.AppointmentDate
+FROM MedicalManagement.Patient_Doctor_Appointments A -- all appointment with onle doctore so all S_ID in this table will be for doctore only 
+GROUP BY A.S_ID, A.AppointmentDate
+HAVING COUNT(*) > 10
+)
+BEGIN
+EXEC msdb.dbo.sp_send_dbmail --Built-in stored procedure that sends emails from SQL Server.
+ @profile_name = 'Doctor Appointment Alert',  -- replace with your profile name
+ @recipients = 'fatemaalsaaidi116@gmail.com',
+ @subject = 'x( Doctor Alert: Overloaded Schedule',
+ @body = 'One or more doctors have more than 10 appointments scheduled today. Please check the schedule.';
+END
+```
+![](img/EmailAlart2_3.png)
+         
+4. Set a Schedule
+
+    Go to the Schedules tab → Click New...
+
+      - Name: DailyCheck
+      - Frequency: Daily
+      - Time: choose a time like 10:00 AM
+![](img/EmailAlart2_4.png)
+
+5. Enable Notifications
+Go to Notifications tab
+Choose: When the job succeeds → E-mail
+![](img/EmailAlart2_5.1.png)
+Use your working mail profile and email
+![](img/EmailAlart2_5.2.png)
+![](img/EmailAlart2_5.3.png)
+![](img/EmailAlart2_5.4.png)
+6. Restart SQL Server Agent
+Right-click on SQL Server Agent > Restart
+![](img/EmailAlart2_6.2.png)
+
+
+
+
+7. Test the Job
+Right-click on the job → Start Job at Step...
+![](img/EmailAlart2_7.1.png)
+
+    
+
+
+
 
 
 
